@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EV Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+
+    <!-- Leaflet Map -->
+    <link rel="stylesheet"
+     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #0b0f14;
+            color: white;
+        }
+
+        .header {
+            background: #111827;
+            padding: 16px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .container {
+            padding: 16px;
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .card {
+            background: #111827;
+            padding: 20px;
+            border-radius: 16px;
+        }
+
+        .online { color: #00ff9c; }
+        .offline { color: #ff4c4c; }
+
+        .battery-bar {
+            height: 26px;
+            background: #1f2933;
+            border-radius: 13px;
+            overflow: hidden;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg,#00ff9c,#00d4ff);
+        }
+
+        .soc {
+            font-size: 36px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .metrics {
+            display: flex;
+            gap: 10px;
+        }
+
+        .metric {
+            flex: 1;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        #map {
+            height: 250px;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">🚗 EV BATTERY & GPS DASHBOARD</div>
+
+<div class="container">
+
+{% for id, d in devices.items() %}
+<div class="card">
+    <h3>{{ id }}</h3>
+    Status:
+    <span class="{{ 'online' if d.status=='ONLINE' else 'offline' }}">
+        {{ d.status }}
+    </span>
+
+    <p>State: {{ d.state }}</p>
+
+    <div class="battery-bar">
+        <div class="battery-fill" data-soc="{{ d.soc }}"></div>
+    </div>
+
+    <div class="soc">{{ d.soc }}%</div>
+
+    <div class="metrics">
+        <div class="metric">
+            {{ d.voltage }} V<br><small>Voltage</small>
+        </div>
+        <div class="metric">
+            {{ d.temperature }} °C<br><small>Temp</small>
+        </div>
+    </div>
+
+    <small>Last update: {{ d.last_seen }}</small>
+</div>
+{% endfor %}
+
+<div class="card">
+    <h3>📍 Vehicle Location</h3>
+    <div id="map"></div>
+</div>
+
+</div>
+
+<script>
+document.querySelectorAll('.battery-fill').forEach(el => {
+    el.style.width = el.dataset.soc + '%';
+});
+
+// Map
+let lat = {{ gps.lat if gps.lat else 0 }};
+let lon = {{ gps.lon if gps.lon else 0 }};
+
+let map = L.map('map').setView([lat, lon], 15);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+let marker = L.marker([lat, lon]).addTo(map);
+
+// Send GPS from phone
+if (navigator.geolocation) {
+    navigator.geolocation.watchPosition(pos => {
+        fetch('/gps', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude
+            })
+        });
+    });
+}
+</script>
+
+</body>
+</html>
